@@ -3,6 +3,33 @@
 All notable changes to LaTeX Anywhere are recorded here. Versions follow the
 extension manifest version; dates refer to repository publication milestones.
 
+## [1.10.2] - 2026-11-18
+
+### Markdown preview and boxed math
+
+- Render Markdown alongside LaTeX in the editor preview and the modal result
+  pane: emphasis, headings, lists, blockquotes, tables, links, code and
+  strikethrough (GFM-compatible syntax).
+- Preserve the user's Markdown source on Apply and Copy. Double-click a
+  rendered Markdown fragment to edit its original markup, or use the separate
+  full-text source editor.
+- Detect completed Markdown syntax during editing and enable automatic preview
+  opening when the source contains renderable Markdown.
+- Avoid rendering LaTeX that appears inside Markdown code spans or fenced code.
+- Keep Markdown output safe: construct DOM nodes without trusting embedded HTML,
+  reject unsafe URL protocols and do not load external images automatically.
+- Recognize `\\boxed{...}` with the bundled KaTeX and add a boxed-expression
+  template to the structure palette.
+- Bundle the MIT-licensed Marked 4.0.19 locally and preserve its license notice.
+
+### Verification
+
+- Chromium simulated-page tests: Markdown and boxed math rendering, live
+  Markdown completion, source round-tripping, editing by double click,
+  safe handling of HTML/links, and fenced-code isolation.
+- JavaScript syntax and Manifest V3 validation; native extension behavior on
+  the current ChatGPT UI still requires installation testing.
+
 ## [1.10.1] - 2026-11-18
 
 ### Persistent visibility scopes

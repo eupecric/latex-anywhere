@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "LaTeX Anywhere — Editor & Preview",
   "short_name": "LaTeX Anywhere",
-  "description": "Editor e prévia LaTeX com símbolos, atalhos e ocultação persistente por domínio ou global.",
-  "version": "1.10.1",
+  "description": "Pré-visualização e edição de LaTeX e Markdown, com símbolos, atalhos e ocultação persistente.",
+  "version": "1.10.2",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
@@ -18,6 +18,8 @@
       ],
       "js": [
         "vendor/katex-local.js",
+        "vendor/marked.js",
+        "vendor/markdown-renderer.js",
         "vendor/latex-formatting.js",
         "vendor/latex-catalog.js",
         "content.js"

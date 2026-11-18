@@ -2,7 +2,7 @@
 
 Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-visualização LaTeX a campos de texto em sites compatíveis, incluindo `textarea` e `contenteditable`.
 
-**Versão atual: 1.10.1.** Primeira versão no repositório: 1.10.0.
+**Versão atual: 1.10.2.** Primeira versão no repositório: 1.10.0.
 
 ## Instalação em modo desenvolvedor
 
@@ -16,6 +16,8 @@ Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-vis
 
 ## Recursos
 
+- Renderização de Markdown: títulos, ênfase, listas, tabelas, citações, links e blocos de código, mantendo o Markdown original ao aplicar.
+- Suporte a `\boxed{...}` na prévia matemática e como atalho na paleta de estruturas.
 - Prévia renderizada de expressões entre `\(...\)`, `\[...\]`, `$$...$$` e ambientes AMS compatíveis.
 - Prévia e editores móveis/redimensionáveis com opção de sincronizar ou aplicar manualmente.
 - Edição inline ou separada de fórmulas, incluindo ambientes multilinha.
@@ -52,7 +54,9 @@ mas eles não são guardados para restaurar após fechar essa aba.
 
 ## Tecnologia e limitações
 
-O código inclui uma versão local do **KaTeX** para renderização matemática; consulte a licença correspondente em `extension/vendor/LICENCA-KATEX.txt`.
+O código inclui uma versão local do **KaTeX** para renderização matemática e uma cópia do **Marked 4.0.19** para leitura do Markdown. Ambos são distribuídos sob licença MIT, com os avisos correspondentes em `extension/vendor/LICENCA-KATEX.txt` e `extension/vendor/LICENCA-MARKED.txt`.
+
+[Consulte a documentação de Markdown, segurança e limitações](docs/MARKDOWN.md).
 
 O processamento das mensagens ocorre no navegador. Preferências de interface e atalhos são salvas localmente por site. O recurso de sincronização automática com editores complexos (como o ProseMirror do ChatGPT) tem limitações e deve ser validado no navegador antes de seu uso em mensagens importantes.
 
@@ -64,7 +68,7 @@ Após editar `extension/`, clique em **Recarregar** na página de extensões e a
 
 ## Releases and version history
 
-The first version published to this repository is **v1.10.0**; the current development version is **v1.10.1**. See
+The first version published to this repository is **v1.10.0**; the current development version is **v1.10.2**. See
 [CHANGELOG.md](CHANGELOG.md) for the version history. Each subsequent change
 should update `extension/manifest.json`, the changelog, and the corresponding
 Git commit. The extension is intended for a future free Chrome Web Store
@@ -84,8 +88,7 @@ under the license conditions, including the requirements to retain the
 applicable copyright and attribution notices and indicate changed files.
 See [NOTICE](NOTICE) for the project's original authorship notice.
 
-Third-party KaTeX components are licensed separately under MIT; their notice
-is preserved at
-[`extension/vendor/LICENCA-KATEX.txt`](extension/vendor/LICENCA-KATEX.txt).
+Third-party KaTeX and Marked components are licensed separately under MIT. Their notices
+are preserved at `extension/vendor/LICENCA-KATEX.txt` and `extension/vendor/LICENCA-MARKED.txt`.
 Open source does not require forks to display the author's name in their UI,
 but the applicable attribution notices must be preserved on redistribution.

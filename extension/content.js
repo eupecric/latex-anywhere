@@ -12,7 +12,8 @@
   const katex = globalThis.LatexAnywhereKaTeX;
   const formatter = globalThis.LatexAnywhereFormatting;
   const symbolCatalog = globalThis.LatexAnywhereCatalog;
-  if (!katex || !formatter || !symbolCatalog || !document.documentElement) return;
+  const markdown = globalThis.LatexAnywhereMarkdown;
+  if (!katex || !formatter || !symbolCatalog || !markdown || !document.documentElement) return;
 
   let currentTarget = null;
   let modalTarget = null;
@@ -482,6 +483,41 @@
       padding:9px 12px 16px; color:#172033; flex:1; min-height:0; overflow:auto; }
     .la-preview .la-equation { display:inline; vertical-align:baseline; }
     .la-editable-preview { outline:none; cursor:text; white-space:pre-wrap; }
+    /* Markdown is rendered from safe DOM nodes. The original Markdown source
+       always remains in data-markdown-raw, never converted to HTML on apply. */
+    .la-markdown-node { white-space:normal; overflow-wrap:anywhere; }
+    .la-markdown-node h1, .la-markdown-node h2, .la-markdown-node h3,
+    .la-markdown-node h4, .la-markdown-node h5, .la-markdown-node h6 {
+      font-weight:800; line-height:1.25; margin:5px 0; }
+    .la-markdown-node h1 { font-size:1.65em; }
+    .la-markdown-node h2 { font-size:1.4em; }
+    .la-markdown-node h3 { font-size:1.18em; }
+    .la-markdown-node p { margin:0; }
+    .la-markdown-node blockquote { border-left:3px solid #97a9d6; padding:4px 10px;
+      color:#55627d; margin:4px 0; }
+    .la-markdown-node ul, .la-markdown-node ol { margin:4px 0; padding-left:1.6em; }
+    .la-markdown-node li { margin:2px 0; }
+    .la-markdown-node pre { margin:5px 0; padding:9px; overflow-x:auto;
+      background:#eff2f8; border-radius:6px; white-space:pre; }
+    .la-markdown-node code { padding:1px 3px; background:#eef2f8; border-radius:3px;
+      font-family:ui-monospace,Consolas,monospace; font-size:.92em; }
+    .la-markdown-node pre code { padding:0; background:transparent; }
+    .la-markdown-node table { border-collapse:collapse; margin:5px 0; }
+    .la-markdown-node th, .la-markdown-node td { border:1px solid #bdc9df;
+      padding:4px 7px; text-align:left; }
+    .la-markdown-node a { color:#2455bc; text-decoration:underline; }
+    .la-markdown-token { display:inline-block; max-width:100%; vertical-align:baseline;
+      background:#f1f5ff; border-radius:4px; cursor:text;
+      outline:1px solid transparent; user-select:all; }
+    .la-markdown-token:hover, .la-markdown-token:focus-visible {
+      outline-color:#94adea; background:#e7efff; }
+    .la-markdown-token.la-markdown-block { display:block; width:max-content;
+      max-width:100%; margin:3px 0; }
+    .la-markdown-source { display:inline-block; width:auto; max-width:100%;
+      background:#f7f9ff; color:#1d3064; border:1px solid #95afe9; border-radius:5px;
+      padding:4px 6px; font:13px/1.45 ui-monospace,Consolas,monospace; }
+    textarea.la-markdown-source { display:block; width:min(100%,70ch); min-width:200px;
+      min-height:75px; resize:both; white-space:pre-wrap; overflow-wrap:anywhere; }
     .la-editable-preview:focus { outline: 2px solid #b4c8f8; outline-offset: -2px; }
     .la-editable-preview:empty::before { content:attr(data-placeholder); color:#8590a3; pointer-events:none; }
     .la-math-token { display:inline-block; vertical-align:baseline; border-radius:5px;
@@ -1521,6 +1557,9 @@
 
   function mathSegments(source) {
     const pieces = [];
+    // Never parse LaTeX delimiters inside Markdown code fences or inline code.
+    const protectedRanges = markdown.codeRanges(source);
+    const protectedAt = index => protectedRanges.some(([start,end])=>index>=start && index<end);
     const delimiters = [
       { open: String.raw`\(`, close: String.raw`\)`, display: false },
       { open: String.raw`\[`, close: String.raw`\]`, display: true },
@@ -1535,7 +1574,7 @@
       const regex = /\\begin\{([a-zA-Z]+\*?)\}/g;
       regex.lastIndex = from;
       for (let match; (match = regex.exec(source)); ) {
-        if (standaloneMathEnvironments.has(match[1]) && !escaped(match.index)) {
+        if (standaloneMathEnvironments.has(match[1]) && !escaped(match.index) && !protectedAt(match.index)) {
           return { index: match.index, open: match[0], close: `\\end{${match[1]}}`,
             display: true, environment: match[1] };
         }
@@ -1548,7 +1587,7 @@
       let earliest = nextStandaloneEnv(pos);
       for (const delim of delimiters) {
         let index = source.indexOf(delim.open, pos);
-        while (index !== -1 && escaped(index)) index = source.indexOf(delim.open, index + delim.open.length);
+        while (index !== -1 && (escaped(index) || protectedAt(index))) index = source.indexOf(delim.open, index + delim.open.length);
         if (index !== -1 && (!earliest || index < earliest.index)) earliest = { ...delim, index };
       }
       if (!earliest) break;
@@ -1655,6 +1694,26 @@
     return span;
   }
 
+  function markdownToken(part) {
+    const span=element('span','la-markdown-node la-markdown-token' + (part.block?' la-markdown-block':''));
+    span.contentEditable='false';
+    span.tabIndex=0;
+    span.dataset.markdownRaw=part.raw;
+    span.title=`${part.raw} — dois cliques para editar Markdown`;
+    markdown.paint(span,part);
+    return span;
+  }
+
+  function addMarkdownPreview(target,source) {
+    for (const part of markdown.parts(source)) {
+      if (part.kind==='text') target.appendChild(document.createTextNode(part.raw));
+      else {
+        const container=element('span','la-markdown-node' + (part.block?' la-markdown-block':''),undefined,target);
+        markdown.paint(container,part);
+      }
+    }
+  }
+
   function renderPreview(target, source) {
     target.replaceChildren();
     if (!source) {
@@ -1665,7 +1724,7 @@
     let hasMath = false;
     for (const part of parts) {
       if (part.kind === 'text') {
-        target.appendChild(document.createTextNode(part.value));
+        addMarkdownPreview(target,part.value);
       } else {
         hasMath = true;
         const span = element('span', part.display ? 'la-equation la-display' : 'la-equation', undefined, target);
@@ -1701,8 +1760,18 @@
     let offset = 0;
     for (const part of mathSegments(previewDraftText)) {
       if (part.kind === 'text') {
-        peekBody.appendChild(document.createTextNode(part.value));
-        offset += part.value.length;
+        for (const mdpart of markdown.parts(part.value)) {
+          const from=offset;
+          const to=from+mdpart.raw.length;
+          // While typing inside Markdown syntax, keep the source directly
+          // editable. Once its closing marker is completed, render it.
+          const editing=keepMathSourceAt!==null &&
+            keepMathSourceAt>from && keepMathSourceAt<to;
+          if (mdpart.kind==='text' || editing)
+            peekBody.appendChild(document.createTextNode(mdpart.raw));
+          else peekBody.appendChild(markdownToken(mdpart));
+          offset=to;
+        }
       } else {
         // AMS environment markers vary in length; preserve source offsets.
         const innerStart = offset + part.openLength;
@@ -1727,7 +1796,7 @@
     // node immediately AFTER *each* formula, Chromium may place a click just
     // to its right at the start of the entire preview (especially when the
     // following item is a block formula). The anchor is not part of LaTeX.
-    for (const token of peekBody.querySelectorAll('.la-math-token')) {
+    for (const token of peekBody.querySelectorAll('.la-math-token, .la-markdown-token')) {
       const next = token.nextSibling;
       if (!next || next.nodeType !== Node.TEXT_NODE ||
           !(next.nodeValue || '').startsWith(caretAnchor)) {
@@ -1747,6 +1816,10 @@
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         if (child.classList.contains('la-math-token')) {
           s += child.dataset.latexRaw || '';
+        } else if (child.classList.contains('la-markdown-token')) {
+          s += child.dataset.markdownRaw || '';
+        } else if (child.classList.contains('la-markdown-source')) {
+          s += child.value || '';
         } else if (child.classList.contains('la-math-source')) {
           s += child.value || '';
         } else if (child.tagName === 'BR') {
@@ -1824,8 +1897,8 @@
           range.setStart(child, domOffset); range.collapse(true); return range;
         }
         remaining -= length;
-      } else if (child.nodeType === Node.ELEMENT_NODE && child.classList.contains('la-math-token')) {
-        const length = (child.dataset.latexRaw || '').length;
+      } else if (child.nodeType === Node.ELEMENT_NODE && (child.classList.contains('la-math-token') || child.classList.contains('la-markdown-token'))) {
+        const length = (child.dataset.latexRaw || child.dataset.markdownRaw || '').length;
         if (remaining < length) {
           range.setStart(peekBody, index + (remaining > length / 2 ? 1 : 0));
           range.collapse(true); return range;
@@ -1908,6 +1981,70 @@
     if (text !== previewDraftText) setDraft(text);
     renderEditableDraft(caret);
     restorePreviewCaret(previousOffset);
+  }
+
+  function renderCompletedMarkdownNow() {
+    if (previewIsComposing || previewEditingFormula || fullTextOpen ||
+        !peekBody.isConnected || peekBody.querySelector('.la-markdown-source')) return;
+    const raw=serializeEditable();
+    const caret=capturePreviewCaret();
+    if (caret===null) return;
+    const rendered=new Set(Array.from(peekBody.querySelectorAll('.la-markdown-token')).map(token=>{
+      const index=Array.prototype.indexOf.call(token.parentNode.childNodes,token);
+      return `${serializedOffsetForPoint(token.parentNode,index)}:${token.dataset.markdownRaw}`;
+    }));
+    let position=0, change=false;
+    for (const mathpart of mathSegments(raw)) {
+      if (mathpart.kind==='math') {position+=mathpart.raw.length;continue;}
+      for (const part of markdown.parts(mathpart.value)) {
+        const end=position+part.raw.length;
+        // Never turn an unfinished heading/list/fence into an atomic block
+        // while the user is still typing its current line.
+        if (part.kind==='markdown' && caret>=end &&
+            (!part.block || /\n$/.test(part.raw)) &&
+            !rendered.has(`${position}:${part.raw}`)) change=true;
+        position=end;
+      }
+    }
+    if (change) {
+      if (raw!==previewDraftText) setDraft(raw);
+      renderEditableDraft(caret);
+      restorePreviewCaret(caret);
+    }
+  }
+
+  function beginMarkdownEdit(token) {
+    if (!token?.isConnected || fullTextOpen) return;
+    if (activeFormulaEdit) finishCurrentFormulaEdit();
+    const raw=token.dataset.markdownRaw || '';
+    const start=serializedOffsetForPoint(token.parentNode,
+      Array.prototype.indexOf.call(token.parentNode.childNodes,token));
+    const multiline=/[\r\n]/.test(raw);
+    const field=element(multiline?'textarea':'input','la-markdown-source');
+    if (!multiline) field.type='text';
+    field.value=raw;
+    token.replaceWith(field);
+    let finishing=false;
+    const finish=(value)=>{
+      if (finishing || !field.isConnected) return;
+      finishing=true; // Replacing a focused field fires blur synchronously.
+      const parent=field.parentNode;
+      if (!parent || !Array.from(parent.childNodes).includes(field)) return;
+      parent.replaceChild(document.createTextNode(value),field);
+      setDraft(serializeEditable());
+      renderEditableDraft();
+      restorePreviewCaret(start+value.length);
+      if (autoApply && applyMode==='replace' && previewDirty) scheduleAutoApply();
+    };
+    field.addEventListener('input',()=>setDraft(serializeEditable()));
+    field.addEventListener('keydown',e=>{
+      if (e.key==='Escape') {e.preventDefault();e.stopPropagation();finish(raw);}
+      else if (e.key==='Enter' && (!multiline || e.ctrlKey || e.metaKey)) {
+        e.preventDefault();e.stopPropagation();finish(field.value);
+      }
+    });
+    field.addEventListener('blur',()=>finish(field.value));
+    field.focus({preventScroll:true});field.select();
   }
 
   function shortcutTemplateContent(template, selected) {
@@ -2653,6 +2790,12 @@
     if (node && peekBody.contains(node) && !fullTextOpen) {
       event.preventDefault(); event.stopPropagation();
       beginMathEdit(node);
+      return;
+    }
+    const md = event.target instanceof Element && event.target.closest('.la-markdown-token');
+    if (md && peekBody.contains(md) && !fullTextOpen) {
+      event.preventDefault(); event.stopPropagation();
+      beginMarkdownEdit(md);
     }
   });
   peekBody.addEventListener('keydown', (event) => {
@@ -2668,6 +2811,9 @@
     }
     if (!fullTextOpen && event.target?.classList?.contains('la-math-token') && (event.key === 'Enter' || event.key === 'F2')) {
       event.preventDefault(); beginMathEdit(event.target); return;
+    }
+    if (!fullTextOpen && event.target?.classList?.contains('la-markdown-token') && (event.key === 'Enter' || event.key === 'F2')) {
+      event.preventDefault(); beginMarkdownEdit(event.target); return;
     }
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault(); event.stopPropagation();
@@ -2686,20 +2832,21 @@
   peekBody.addEventListener('focusout', () => { previewEnterInProgress = false; });
   peekBody.addEventListener('keyup', event => {
     if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','Tab'].includes(event.key))
-      renderCompletedMathNow();
+      { renderCompletedMathNow(); renderCompletedMarkdownNow(); }
   });
-  peekBody.addEventListener('mouseup', () => { renderCompletedMathNow(); });
+  peekBody.addEventListener('mouseup', () => { renderCompletedMathNow(); renderCompletedMarkdownNow(); });
   peekBody.addEventListener('compositionstart', () => { previewIsComposing = true; });
   peekBody.addEventListener('compositionend', () => {
     previewIsComposing = false;
     setDraft(serializeEditable());
     renderCompletedMathNow(true);
+    renderCompletedMarkdownNow();
   });
   peekBody.addEventListener('input', event => {
-    if (event.target?.classList?.contains('la-math-source')) return;
+    if (event.target?.classList?.contains('la-math-source') || event.target?.classList?.contains('la-markdown-source')) return;
     if (event.inputType !== 'insertLineBreak') previewSoftBreakAtEnd = false;
     setDraft(serializeEditable());
-    if (!event.isComposing) renderCompletedMathNow(true);
+    if (!event.isComposing) { renderCompletedMathNow(true); renderCompletedMarkdownNow(); }
   });
   peekBody.addEventListener('paste', event => {
     if (event.target?.classList?.contains('la-math-source')) return;
@@ -2709,6 +2856,7 @@
     document.execCommand('insertText', false, plain);
     setDraft(serializeEditable());
     renderCompletedMathNow(true);
+    renderCompletedMarkdownNow();
   });
   peekBody.addEventListener('focusout', () => {
     setTimeout(() => {
@@ -3125,8 +3273,11 @@
     }
     const canContainMath = value.includes(String.raw`\(`) || value.includes(String.raw`\[`) ||
       value.includes('$$') || value.includes(String.raw`\begin{`);
+    const hasRenderableSyntax = (canContainMath && mathSegments(value).some(p => p.kind === 'math')) ||
+      (/[#*_`~>\[\]|-]/.test(value) && mathSegments(value).some(p =>
+        p.kind === 'text' && markdown.parts(p.value).some(md => md.kind === 'markdown')));
     const show = previewVisibility === 'open' ||
-      (previewVisibility === 'auto' && canContainMath && mathSegments(value).some(p => p.kind === 'math'));
+      (previewVisibility === 'auto' && hasRenderableSyntax);
     peek.classList.toggle('la-hidden', !show);
     fullTextWindow.classList.toggle('la-hidden', !show || !fullTextOpen);
     placeUI();

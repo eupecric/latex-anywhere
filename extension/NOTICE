@@ -10,3 +10,6 @@ See the LICENSE file for the full license terms.
 The project bundles third-party KaTeX code, which is licensed separately
 under the MIT License. See extension/vendor/LICENCA-KATEX.txt for its
 copyright notice and license terms.
+
+This project also bundles the Marked 4.0.19 Markdown parser under the MIT
+License. See extension/vendor/LICENCA-MARKED.txt for copyright and license.

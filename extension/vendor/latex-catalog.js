@@ -62,9 +62,10 @@ ${end}\,\right]`;
       {title:'Variantes',items:greekVariant}
     ]),
     group('structures','Estruturas',[
-      {title:'Potências e raízes',items:[
+      {title:'Potências, raízes e caixas',items:[
         ...quick.slice(0,4),
-        template('∛',String.raw`\sqrt[3]{{{selection}}{{cursor}}}`,'Raiz cúbica')
+        template('∛',String.raw`\sqrt[3]{{{selection}}{{cursor}}}`,'Raiz cúbica'),
+        template('□',String.raw`\boxed{{{selection}}{{cursor}}}`,'Expressão em caixa (boxed)')
       ]},
       {title:'Frações — escolha do estilo',items:[
         template('a/b',String.raw`\frac{{{selection}}{{cursor}}}{}`,'Fração padrão (\frac); acompanha o math mode'),
