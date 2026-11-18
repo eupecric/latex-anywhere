@@ -1,0 +1,12 @@
+LaTeX Anywhere
+Copyright 2026 Patrick Eduardo Scuracchio
+
+Original project created and maintained by Patrick Eduardo Scuracchio.
+Project repository: https://github.com/eupecric/latex-anywhere
+
+This project is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license terms.
+
+The project bundles third-party KaTeX code, which is licensed separately
+under the MIT License. See extension/vendor/LICENCA-KATEX.txt for its
+copyright notice and license terms.

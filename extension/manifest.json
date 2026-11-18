@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "LaTeX Anywhere — Editor & Preview",
+  "short_name": "LaTeX Anywhere",
+  "description": "Prévia LaTeX com catálogo de símbolos, menu contextual de cópia e associação de atalhos de teclado.",
+  "version": "1.10.0",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file:///*"
+      ],
+      "js": [
+        "vendor/katex-local.js",
+        "vendor/latex-formatting.js",
+        "vendor/latex-catalog.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "LaTeX Anywhere — clicar para mostrar/ocultar",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png"
+    }
+  },
+  "commands": {
+    "toggle-latex-anywhere": {
+      "suggested_key": {
+        "default": "Alt+Shift+L"
+      },
+      "description": "Mostrar ou ocultar LaTeX Anywhere no site atual"
+    }
+  }
+}

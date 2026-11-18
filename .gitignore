@@ -1,0 +1,10 @@
+# Local development artifacts
+.DS_Store
+Thumbs.db
+*.log
+*.zip
+node_modules/
+coverage/
+.tmp/
+*.swp
+*.swo
