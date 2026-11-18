@@ -2,7 +2,7 @@
 
 Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-visualização LaTeX a campos de texto em sites compatíveis, incluindo `textarea` e `contenteditable`.
 
-**Versão inicial neste repositório: 1.10.0.**
+**Versão atual: 1.10.1.** Primeira versão no repositório: 1.10.0.
 
 ## Instalação em modo desenvolvedor
 
@@ -22,7 +22,27 @@ Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-vis
 - Barra de formatação e catálogo de símbolos LaTeX com busca e categorias.
 - Atalhos de inserção e teclas configuráveis por site; `Ctrl+B`, `Ctrl+I`, `Ctrl+U` fixos nos editores da extensão.
 - Menu de contexto dos símbolos: **Copiar LaTeX** e **Definir tecla de atalho**.
-- Zoom independente nas visualizações e modos de minimizar/ocultar a extensão.
+- Zoom independente nas visualizações e modo de minimizar a barra.
+- Ocultação persistente por domínio ou em todos os sites, com recuperação pelo ícone do Chrome.
+
+## Ocultar e reativar
+
+Clique em **Ocultar** na barra principal para escolher entre:
+
+- **Ocultar neste domínio:** a extensão deixa de aparecer no domínio atual,
+  incluindo após atualizar a página ou fechar e reabrir o Chrome.
+- **Ocultar em todos os sites:** oculta a extensão em qualquer aba/site;
+  essa escolha tem prioridade sobre as configurações de cada domínio.
+
+Para reativar, **clique no ícone da extensão na barra do Chrome**. O painel
+permite desligar separadamente cada bloqueio. Também é possível usar
+**`Alt+Shift+L`**: com ocultação global ativa, ele a desativa; caso contrário,
+alterna a ocultação do domínio atual. O atalho pode ser ajustado em
+`chrome://extensions/shortcuts`.
+
+As escolhas são armazenadas em `chrome.storage.local`, independentemente do
+texto das mensagens. O menu Ocultar não apaga os rascunhos abertos numa aba,
+mas eles não são guardados para restaurar após fechar essa aba.
 
 ## Estrutura
 
@@ -44,7 +64,7 @@ Após editar `extension/`, clique em **Recarregar** na página de extensões e a
 
 ## Releases and version history
 
-The first version published to this repository is **v1.10.0**. See
+The first version published to this repository is **v1.10.0**; the current development version is **v1.10.1**. See
 [CHANGELOG.md](CHANGELOG.md) for the version history. Each subsequent change
 should update `extension/manifest.json`, the changelog, and the corresponding
 Git commit. The extension is intended for a future free Chrome Web Store

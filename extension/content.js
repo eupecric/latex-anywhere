@@ -1,5 +1,5 @@
 /*
- * LaTeX Anywhere v1.10.0 — symbol context menu, copy LaTeX and keyboard bindings.
+ * LaTeX Anywhere v1.10.1 — persistent global and domain visibility controls.
  * Runs locally in Chrome's ISOLATED world; sends no data to any service.
  * By default, original field is only modified after Apply; live apply is opt-in.
  */
@@ -106,12 +106,27 @@
   let pendingKeyBindings = null;
   let keyboardWindowOpen = false;
 
-  // Visibility is a per-origin preference; never store message contents.
-  // Unlike previewVisibility, disabling turns off the *entire* extension UI.
-  const enabledKey = `latex-anywhere-enabled-v1:${location.origin}`;
+  // Persistent global and hostname-scoped visibility preferences. The older
+  // per-origin key remains readable as a migration fallback until the user
+  // explicitly chooses a value for the new domain key.
+  const globalVisibilityKey = 'latex-anywhere-visibility-v2:global-hidden';
+  // A frame uses the embedding page's site when Chrome exposes its origin,
+  // preventing cross-origin iframes from bypassing a domain-level hide.
+  const topSiteOrigin = location.ancestorOrigins?.length
+    ? location.ancestorOrigins[location.ancestorOrigins.length - 1] : location.origin;
+  let pageHostname = location.hostname;
+  try { pageHostname = new URL(topSiteOrigin).hostname || pageHostname; }
+  catch { /* file:// and opaque origins keep the local fallback. */ }
+  const normalizedHost = location.protocol === 'file:' ? 'local-files'
+    : (pageHostname.toLowerCase().replace(/^www\./, '') || location.origin);
+  const domainVisibilityKey = `latex-anywhere-visibility-v2:domain-hidden:${normalizedHost}`;
+  const legacyEnabledKey = `latex-anywhere-enabled-v1:${location.origin}`;
+  let globalHidden = false;
+  let domainHidden = false;
   let extensionEnabled = true;
   let visibilityReady = false;
   let visibilityRevision = 0;
+  let visibilityLoadId = 0;
   const inViewport = (v, max) => Math.max(8, Math.min(Math.max(8, max - 8), v));
   const normalizedZoom = value => value === null || value === undefined || value === ''
     ? 100 : (Number.isFinite(Number(value))
@@ -238,6 +253,14 @@
     .la-toolbarbutton .la-icon { display:block; width:15px; height:15px; flex:0 0 15px; overflow:visible; }
     .la-toolbarbutton .la-button-label { display:block; line-height:1; }
     .la-toolbarbutton:hover, .la-toolbarbutton[aria-pressed="true"] { background:#eaf0ff; }
+    .la-visibility-menu {position:fixed;z-index:15;pointer-events:auto;display:flex;
+      flex-direction:column;gap:3px;min-width:260px;max-width:calc(100vw - 16px);
+      padding:6px;border:1px solid #cbd5e6;border-radius:12px;background:#fff;
+      box-shadow:0 14px 38px #1c2b4d35;color:#24334b;font:12px/1.4 system-ui,sans-serif;}
+    .la-visibility-option {display:block;width:100%;text-align:left;border:0;border-radius:8px;
+      background:transparent;color:#24334b;padding:10px 12px;font-weight:700;}
+    .la-visibility-option:hover,.la-visibility-option:focus-visible {background:#ebf1ff;}
+    .la-visibility-hint {padding:5px 10px 7px;color:#69748c;font-size:11px;}
     .la-toolbar.la-mini-mode { padding:6px 8px; border-radius:12px; }
     .la-toolbar.la-mini-mode > .la-grip,
     .la-toolbar.la-mini-mode > .la-toolbarbutton { display:none; }
@@ -850,8 +873,37 @@
   const hideAllTrigger = element('button', 'la-toolbarbutton', undefined, toolbar);
   setToolbarButton(hideAllTrigger, 'Ocultar', 'power');
   hideAllTrigger.type = 'button';
-  hideAllTrigger.title = 'Ocultar toda a extensão neste site · Reativar com Alt+Shift+L ou pelo ícone do Chrome';
-  hideAllTrigger.setAttribute('aria-label', 'Ocultar toda a extensão neste site');
+  hideAllTrigger.title = 'Escolher entre ocultar neste domínio ou em todos os sites';
+  hideAllTrigger.setAttribute('aria-label', 'Escolher o alcance da ocultação');
+  hideAllTrigger.setAttribute('aria-haspopup', 'menu');
+  hideAllTrigger.setAttribute('aria-expanded', 'false');
+  // The chooser lives outside the toolbar, so it is not clipped or moved with
+  // the bar. Once the user hides the extension, the whole Shadow DOM vanishes.
+  const visibilityMenu = element('div','la-visibility-menu la-hidden',undefined,shadow);
+  visibilityMenu.setAttribute('role','menu');
+  visibilityMenu.setAttribute('aria-label','Ocultar LaTeX Anywhere');
+  const hideDomainOption = element('button','la-visibility-option','Ocultar neste domínio',visibilityMenu);
+  const hideGlobalOption = element('button','la-visibility-option','Ocultar em todos os sites',visibilityMenu);
+  hideDomainOption.type = hideGlobalOption.type = 'button';
+  hideDomainOption.setAttribute('role','menuitem');
+  hideGlobalOption.setAttribute('role','menuitem');
+  element('div','la-visibility-hint','Para reativar, use o ícone do Chrome ou Alt+Shift+L.',visibilityMenu);
+  function closeVisibilityMenu() {
+    visibilityMenu.classList.add('la-hidden');
+    hideAllTrigger.setAttribute('aria-expanded','false');
+  }
+  function openVisibilityMenu() {
+    const opening = visibilityMenu.classList.contains('la-hidden');
+    if (!opening) { closeVisibilityMenu(); return; }
+    visibilityMenu.classList.remove('la-hidden');
+    hideAllTrigger.setAttribute('aria-expanded','true');
+    const r=hideAllTrigger.getBoundingClientRect();
+    const m=visibilityMenu.getBoundingClientRect();
+    visibilityMenu.style.left=`${Math.max(8,Math.min(r.right-m.width,innerWidth-m.width-8))}px`;
+    const top=r.bottom+m.height+8<innerHeight ? r.bottom+5 : r.top-m.height-5;
+    visibilityMenu.style.top=`${Math.max(8,Math.min(top,innerHeight-m.height-8))}px`;
+    hideDomainOption.focus({preventScroll:true});
+  }
 
   // In compact mode the main bar transforms into a maximize button and a 2×2
   // corner picker. These remain accessible even after focus leaves a text field.
@@ -3086,20 +3138,25 @@
     updateTimer = setTimeout(refreshFloating, 95);
   }
 
-  // All extension surfaces live under the same shadow host. Hiding this host
-  // preserves unsaved edits and pane geometry, but makes ALL controls invisible.
-  // We stop pending auto-apply so nothing is written while the UI is off.
-  function setExtensionEnabled(enabled, { persist = false, announce = true } = {}) {
+  // The UI is always hidden while the persisted settings are loaded, so
+  // a hidden extension cannot briefly flash after a page refresh.
+  function reportVisibility() {
+    if (window !== window.top) return;
+    try { chrome.runtime.sendMessage({type:'latex-anywhere:state',
+      enabled:extensionEnabled,globalHidden,domainHidden,domain:normalizedHost
+    }).catch(()=>{}); } catch { /* Service worker restarting. */ }
+  }
+  function setExtensionEnabled(enabled) {
     const changed = !visibilityReady || extensionEnabled !== Boolean(enabled);
     extensionEnabled = Boolean(enabled);
     visibilityReady = true;
     visibilityRevision++;
     host.style.display = extensionEnabled ? '' : 'none';
     if (!extensionEnabled) {
+      closeVisibilityMenu();
       clearTimeout(updateTimer);
       clearTimeout(autoApplyTimer);
     } else if (changed && !modalOpen) {
-      // The editor may have changed while the extension was hidden.
       const focused = findEditor(document.activeElement);
       if (focused && focused !== currentTarget) {
         currentTarget = focused;
@@ -3109,43 +3166,45 @@
       }
       scheduleRefresh();
     }
-    if (persist) {
-      try { chrome.storage.local.set({ [enabledKey]: extensionEnabled }).catch(() => {}); }
-      catch { /* Unavailable storage: session behavior still works. */ }
-    }
-    if (announce && window === window.top) {
-      try { chrome.runtime.sendMessage({
-        type: 'latex-anywhere:state',
-        enabled: extensionEnabled,
-        origin: location.origin
-      }).catch(() => {}); } catch { /* Service worker may be restarting. */ }
-    }
+    reportVisibility();
   }
-
+  function visibilityState() {
+    return {enabled:extensionEnabled,globalHidden,domainHidden,domain:normalizedHost};
+  }
   async function loadEnabled() {
-    const revision = visibilityRevision;
+    const token=++visibilityLoadId;
     try {
-      const data = await chrome.storage.local.get(enabledKey);
-      // Do not override a faster toggle or a storage change during the read.
-      if (revision === visibilityRevision) {
-        setExtensionEnabled(data[enabledKey] !== false);
-      }
+      const values=await chrome.storage.local.get([globalVisibilityKey,domainVisibilityKey,legacyEnabledKey]);
+      if (token!==visibilityLoadId) return;
+      globalHidden=values[globalVisibilityKey]===true;
+      // Once a new preference is explicitly set, the legacy origin value no
+      // longer has any effect (even if it was 'disabled' in older releases).
+      domainHidden=typeof values[domainVisibilityKey]==='boolean'
+        ? values[domainVisibilityKey] : values[legacyEnabledKey]===false;
+      setExtensionEnabled(!globalHidden && !domainHidden);
     } catch {
-      if (revision === visibilityRevision) setExtensionEnabled(true);
+      if (token===visibilityLoadId) setExtensionEnabled(!globalHidden && !domainHidden);
     }
   }
-
+  function setVisibility(scope,hidden) {
+    ++visibilityLoadId; // Supersede any read started before the user's action.
+    const key=scope==='global'?globalVisibilityKey:domainVisibilityKey;
+    if (scope==='global') globalHidden=hidden;
+    else domainHidden=hidden;
+    setExtensionEnabled(!globalHidden && !domainHidden);
+    try { chrome.storage.local.set({[key]:hidden}).catch(()=>loadEnabled()); }
+    catch { /* Remains in effect for this tab until a reload if storage fails. */ }
+  }
   let lastShortcutToggleAt = 0;
   function toggleWithShortcut() {
-    // On some Chrome/Linux installations the registered command is not
-    // dispatched to the service worker, but keydown still reaches the page.
-    // If both paths fire, accept only one toggle per key press.
-    const now = Date.now();
-    if (now - lastShortcutToggleAt < 650) return extensionEnabled;
-    lastShortcutToggleAt = now;
-    const next = !extensionEnabled;
-    setExtensionEnabled(next, { persist: true });
-    return next;
+    // Alt+Shift+L restores global visibility when globally hidden; otherwise
+    // it toggles the current domain. Debounce the Chrome command/key listener.
+    const now=Date.now();
+    if (now-lastShortcutToggleAt<650) return visibilityState();
+    lastShortcutToggleAt=now;
+    if (globalHidden) setVisibility('global',false);
+    else setVisibility('domain',!domainHidden);
+    return visibilityState();
   }
 
   document.addEventListener('keydown', event => {
@@ -3161,14 +3220,19 @@
 
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && Object.prototype.hasOwnProperty.call(changes, enabledKey)) {
-        setExtensionEnabled(changes[enabledKey].newValue !== false);
+      if (area==='local' && (globalVisibilityKey in changes || domainVisibilityKey in changes)) {
+        void loadEnabled();
       }
     });
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (!message || message.type !== 'latex-anywhere:toggle') return false;
-      const enabled = toggleWithShortcut();
-      sendResponse({ enabled, origin: location.origin });
+      if (message?.type==='latex-anywhere:get-state') {
+        sendResponse(visibilityState());
+        return false;
+      }
+      if (message?.type==='latex-anywhere:toggle') {
+        sendResponse(toggleWithShortcut());
+        return false;
+      }
       return false;
     });
   } catch { /* Runtime can be unavailable during extension updates. */ }
@@ -3805,7 +3869,20 @@
   }
 
   editorTrigger.addEventListener('click', openModal);
-  hideAllTrigger.addEventListener('click', () => setExtensionEnabled(false, { persist: true }));
+  hideAllTrigger.addEventListener('click', openVisibilityMenu);
+  hideDomainOption.addEventListener('click',()=>setVisibility('domain',true));
+  hideGlobalOption.addEventListener('click',()=>setVisibility('global',true));
+  document.addEventListener('pointerdown',e=>{
+    if (!visibilityMenu.classList.contains('la-hidden') &&
+        !e.composedPath().includes(visibilityMenu) && !e.composedPath().includes(hideAllTrigger)) {
+      closeVisibilityMenu();
+    }
+  },true);
+  shadow.addEventListener('keydown',e=>{
+    if (e.key==='Escape' && !visibilityMenu.classList.contains('la-hidden')) {
+      e.preventDefault(); e.stopPropagation(); closeVisibilityMenu(); hideAllTrigger.focus();
+    }
+  });
   previewTrigger.addEventListener('click', togglePreview);
   editButton.addEventListener('click', openModal);
   hidePeek.addEventListener('click', () => {

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LaTeX Anywhere — Visibilidade</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header><div class="brand">∑ LaTeX Anywhere</div><small>Visibilidade persistente</small></header>
+<main>
+  <label class="setting"><span><b>Ocultar em todos os sites</b><small>A extensão não aparece em nenhuma aba ou domínio.</small></span><input type="checkbox" id="globalHidden"></label>
+  <label class="setting" id="domainSetting"><span><b>Ocultar neste domínio</b><small id="domainName">Identificando domínio…</small></span><input type="checkbox" id="domainHidden"></label>
+  <p id="status" aria-live="polite"></p>
+  <p class="hint">O bloqueio global tem prioridade. As opções são salvas e permanecem após recarregar ou reiniciar o navegador. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> alterna este domínio ou reativa o bloqueio global.</p>
+</main>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "LaTeX Anywhere — Editor & Preview",
   "short_name": "LaTeX Anywhere",
-  "description": "Prévia LaTeX com catálogo de símbolos, menu contextual de cópia e associação de atalhos de teclado.",
-  "version": "1.10.0",
+  "description": "Editor e prévia LaTeX com símbolos, atalhos e ocultação persistente por domínio ou global.",
+  "version": "1.10.1",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
@@ -34,18 +34,19 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "LaTeX Anywhere — clicar para mostrar/ocultar",
+    "default_title": "LaTeX Anywhere — controlar visibilidade global e por domínio",
     "default_icon": {
       "16": "icons/16.png",
       "48": "icons/48.png"
-    }
+    },
+    "default_popup": "popup.html"
   },
   "commands": {
     "toggle-latex-anywhere": {
       "suggested_key": {
         "default": "Alt+Shift+L"
       },
-      "description": "Mostrar ou ocultar LaTeX Anywhere no site atual"
+      "description": "Alternar visibilidade do domínio ou restaurar a visibilidade global"
     }
   }
 }
