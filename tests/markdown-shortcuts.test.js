@@ -1,0 +1,38 @@
+/* Run: node tests/markdown-shortcuts.test.js (no dependencies). */
+'use strict';
+const assert = require('node:assert/strict');
+const {apply,tools} = require('../extension/vendor/markdown-shortcuts.js');
+const fmt=(src,cmd,start=0,end=src.length)=>apply(src,start,end,cmd);
+
+assert.equal(tools.length,15);
+assert.deepEqual(tools.map(x=>x.id),['h1','h2','h3','bold','italic','strike','code','link','bullet','number','task','quote','fence','table','rule']);
+assert.equal(fmt('xy','bold').text,'**xy**');
+assert.equal(fmt('**xy**','bold').text,'xy');
+assert.equal(fmt('*xy*','italic').text,'xy');
+assert.equal(fmt('abc','strike').text,'~~abc~~');
+assert.equal(fmt('x','code').text,'`x`');
+assert.equal(fmt('alpha','link').text,'[alpha](https://exemplo.com)');
+assert.equal(fmt('alpha','link').text.slice(fmt('alpha','link').start,fmt('alpha','link').end),'https://exemplo.com');
+assert.equal(fmt('one\ntwo','h1').text,'# one\n# two');
+assert.equal(fmt('# one','h2').text,'## one');
+assert.equal(fmt('## one','h2').text,'one');
+assert.equal(fmt('x\ny','bullet').text,'- x\n- y');
+assert.equal(fmt('x\ny','number').text,'1. x\n2. y');
+assert.equal(fmt('- x\n- y','bullet').text,'x\ny');
+assert.equal(fmt('x','task').text,'- [ ] x');
+assert.equal(fmt('- [ ] x','task').text,'x');
+assert.equal(fmt('first\nsecond','quote').text,'> first\n> second');
+assert.equal(fmt('text','fence').text,'```\ntext\n```');
+assert.equal(fmt('```\ntext\n```','fence').text,'text');
+assert.equal(fmt('','rule').text,'---');
+assert.equal(fmt('','table').text,'| Coluna 1 | Coluna 2 |\n| --- | --- |\n| Valor 1 | Valor 2 |');
+assert.equal(fmt('prefix suffix','bold',7,13).text,'prefix **suffix**');
+assert.equal(fmt('x\ny\nz','h2',2,3).text,'x\n## y\nz');
+assert.equal(fmt('abc','h1',0,0).text,'# abc');
+assert.equal(fmt('abc','h1',0,0).start,2);
+assert.equal(fmt('abc','h1',3,3).start,5);
+assert.equal(fmt('','bold').text,'**texto**');
+assert.equal(fmt('','bold').start,2);
+assert.equal(fmt('','bold').end,7);
+assert.equal(fmt('\\(a+b\\) texto','bold',8,13).text,'\\(a+b\\) **texto**');
+console.log('OK: 29 assertions passed for Markdown toolbar source transforms');

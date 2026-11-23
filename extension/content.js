@@ -1,5 +1,5 @@
 /*
- * LaTeX Anywhere v1.10.3 — tab/domain/global hide and minimize scopes.
+ * LaTeX Anywhere v1.10.4 — Markdown editing shortcuts.
  * Runs locally in Chrome's ISOLATED world; sends no data to any service.
  * By default, original field is only modified after Apply; live apply is opt-in.
  */
@@ -13,7 +13,8 @@
   const formatter = globalThis.LatexAnywhereFormatting;
   const symbolCatalog = globalThis.LatexAnywhereCatalog;
   const markdown = globalThis.LatexAnywhereMarkdown;
-  if (!katex || !formatter || !symbolCatalog || !markdown || !document.documentElement) return;
+  const mdShortcuts = globalThis.LatexAnywhereMarkdownShortcuts;
+  if (!katex || !formatter || !symbolCatalog || !markdown || !mdShortcuts || !document.documentElement) return;
 
   let currentTarget = null;
   let modalTarget = null;
@@ -326,6 +327,26 @@
       color:#2745ac; padding:5px 9px; border-radius:7px; font:700 11px system-ui,sans-serif;
       white-space:nowrap; }
     .la-shortcut-edit:hover { background:#dce7ff; }
+    /* A separate Markdown row, above the existing math formatting palette. */
+    .la-mdbar {display:flex;align-items:center;gap:5px;flex:0 0 auto;
+      min-height:34px;max-width:100%;overflow-x:auto;overflow-y:hidden;
+      white-space:nowrap;padding:5px 9px;border-bottom:1px solid #e2e9f5;
+      scrollbar-width:thin;background:#f8faff;}
+    .la-mdbar-label {color:#596987;font:750 11px system-ui,sans-serif;
+      padding-right:4px;flex:0 0 auto;}
+    .la-md-button {display:inline-flex;align-items:center;justify-content:center;
+      flex:0 0 auto;min-height:25px;padding:4px 7px;border:1px solid #c8d7f4;
+      border-radius:6px;background:#fff;color:#29499c;font:700 11px/1 system-ui,sans-serif;}
+    .la-md-button:hover,.la-md-button:focus-visible {background:#e4edff;}
+    .la-md-button[data-md-action="bold"] {font-weight:900;}
+    .la-md-button[data-md-action="italic"] {font-style:italic;}
+    .la-md-button[data-md-action="strike"] {text-decoration:line-through;}
+    @media(prefers-color-scheme:dark) {
+      .la-mdbar {background:#202b43;border-color:#445170;}
+      .la-mdbar-label {color:#b0c2e2;}
+      .la-md-button {background:#273654;color:#e1eafe;border-color:#556b99;}
+      .la-md-button:hover,.la-md-button:focus-visible {background:#36527b;}
+    }
 
     .la-shortcutwindow { position:fixed; z-index:9; pointer-events:auto; display:flex; flex-direction:column;
       width:690px; height:440px; min-width:300px; min-height:240px; max-width:calc(100vw - 16px);
@@ -858,6 +879,21 @@
     return {bar,colorPicker,sizeSelect,symbolsTrigger,keysTrigger};
   }
 
+  function createMarkdownBar(parent,description) {
+    const bar=element('div','la-mdbar',undefined,parent);
+    bar.setAttribute('role','toolbar');
+    bar.setAttribute('aria-label',description);
+    element('span','la-mdbar-label','Markdown:',bar);
+    for(const tool of mdShortcuts.tools) {
+      const button=element('button','la-md-button',tool.label,bar);
+      button.type='button';
+      button.dataset.mdAction=tool.id;
+      button.title=tool.title;
+      button.setAttribute('aria-label',tool.title);
+    }
+    return bar;
+  }
+
   const toolbar = element("div", "la-toolbar la-hidden", undefined, shadow);
   toolbar.setAttribute('role', 'group');
   toolbar.setAttribute('aria-label', 'Ferramentas LaTeX Anywhere');
@@ -1037,6 +1073,7 @@
   keyboardSettingsTrigger.title='Configurar atalhos de teclado (Ctrl+B, Ctrl+I e Ctrl+U são fixos)';
   keyboardSettingsTrigger.setAttribute('aria-label','Configurar atalhos de teclado');
 
+  const previewMarkdownBar = createMarkdownBar(peek,'Atalhos de Markdown na pré-visualização');
   const previewFormatTools = createFormattingBar(peek, 'Formatação LaTeX na pré-visualização');
   const peekBody = element('div', 'la-preview la-editable-preview', undefined, peek);
   peekBody.contentEditable = 'true';
@@ -1121,6 +1158,7 @@
   const fullTextClose = element('button', 'la-mini', '✕', fullTextHead);
   fullTextClose.type = 'button';
   fullTextClose.title = 'Voltar ao modo inline sem descartar alterações';
+  const fullTextMarkdownBar = createMarkdownBar(fullTextWindow,'Atalhos de Markdown do editor completo');
   const fullTextFormatTools = createFormattingBar(fullTextWindow, 'Formatação LaTeX do texto completo');
   const fullTextInput = element('textarea', 'la-fulltextcode', undefined, fullTextWindow);
   fullTextInput.spellcheck = false;
@@ -1223,6 +1261,7 @@
   const leftTitle = element("div", "la-panetitle", undefined, left);
   element("span", "", "CÓDIGO & TEXTO", leftTitle);
   element("span", "la-chip", String.raw`\( ... \)`, leftTitle);
+  const modalMarkdownBar = createMarkdownBar(left,'Atalhos de Markdown no editor');
   const modalFormatTools = createFormattingBar(left, 'Formatação LaTeX no editor');
   const modalInput = element("textarea", "la-editarea", undefined, left);
   modalInput.spellcheck = false;
@@ -3105,7 +3144,8 @@
     const borderX = peek.offsetWidth - peek.clientWidth || 2;
     const borderY = peek.offsetHeight - peek.clientHeight || 2;
     const controls = peekHead.getBoundingClientRect().height +
-      shortcutBar.getBoundingClientRect().height + previewFormatTools.bar.getBoundingClientRect().height + peekTools.getBoundingClientRect().height;
+      shortcutBar.getBoundingClientRect().height + previewMarkdownBar.getBoundingClientRect().height +
+      previewFormatTools.bar.getBoundingClientRect().height + peekTools.getBoundingClientRect().height;
     if (controls > 0) measuredPreviewControlsHeight = controls;
     return {
       minW: Math.min(maxW, MIN_PREVIEW_WRITING_WIDTH + borderX),
@@ -3137,7 +3177,8 @@
     // Width is assigned first because shortcut controls can wrap into an
     // additional row when the editor is narrower than the previous field.
     const controlsHeight = peekHead.getBoundingClientRect().height +
-      shortcutBar.getBoundingClientRect().height + previewFormatTools.bar.getBoundingClientRect().height + peekTools.getBoundingClientRect().height;
+      shortcutBar.getBoundingClientRect().height + previewMarkdownBar.getBoundingClientRect().height +
+      previewFormatTools.bar.getBoundingClientRect().height + peekTools.getBoundingClientRect().height;
     const height = Math.max(limits.minH,
       Math.min(limits.maxH,
         Math.max(MIN_PREVIEW_WRITING_HEIGHT, rect.height) + controlsHeight + borderY));
@@ -3911,6 +3952,76 @@
     }
     applyFormattedSnapshot(snapshot,result);
   }
+  // Markdown actions rewrite source text, not HTML. Math spans are protected.
+  function wireMarkdownBar(bar,origin) {
+    let savedSelection=null;
+    bar.addEventListener('pointerdown',e=>{
+      if(e.button!==0) return;
+      if(!e.target.closest('button[data-md-action]')) return;
+      savedSelection=formattingSnapshot(origin);
+      e.preventDefault(); // Preserve a selection before clicking a toolbar button.
+    },true);
+    for(const button of bar.querySelectorAll('[data-md-action]')) {
+      button.addEventListener('click',()=>{
+        const snapshot=savedSelection || formattingSnapshot(origin);
+        savedSelection=null;
+        if(!snapshot || snapshot.origin==='formula') return;
+        const {source,start,end}=snapshot;
+        if(!Number.isInteger(start) || !Number.isInteger(end)) return;
+        const action=button.dataset.mdAction;
+        const lineOnly=['h1','h2','h3','bullet','number','task','quote'].includes(action);
+        let at=0,intersectsMath=false;
+        for(const segment of mathSegments(source)) {
+          const length=segment.kind==='math'?segment.raw.length:segment.value.length;
+          if(segment.kind==='math' &&
+              (start===end ? start>at && start<at+length :
+               start<at+length && end>at)) intersectsMath=true;
+          at+=length;
+        }
+        if(intersectsMath && !lineOnly) {
+          const msg='Seleção dentro de uma fórmula LaTeX. Edite o math mode ou selecione texto externo.';
+          if(snapshot.origin==='modal') status.textContent=msg;
+          else updatePeekStatus(msg);
+          return;
+        }
+        const result=mdShortcuts.apply(source,start,end,action);
+        if(!result) return;
+        if(snapshot.origin==='preview') {
+          if(fullTextOpen || serializeEditable()!==source) {
+            updatePeekStatus('O texto mudou desde a seleção. Tente novamente.');return;
+          }
+          const scroll=peekBody.scrollTop;
+          setDraft(result.text);
+          renderEditableDraft(result.start);
+          peekBody.scrollTop=scroll;
+          peekBody.focus({preventScroll:true});
+          // Translate source coordinates back to the editable preview DOM.
+          // Markdown fragments containing the caret remain raw until editing finishes.
+          try {
+            const a=caretRangeForSourceOffset(result.start);
+            const b=caretRangeForSourceOffset(result.end);
+            const sel=previewSelection();
+            const r=document.createRange();
+            r.setStart(a.startContainer,a.startOffset);
+            r.setEnd(b.startContainer,b.startOffset);
+            sel.removeAllRanges();sel.addRange(r);
+          } catch {restorePreviewCaret(result.start);}
+        } else {
+          const field=snapshot.field;
+          if(!field?.isConnected || field.value!==source) return;
+          field.value=result.text;
+          field.setSelectionRange(result.start,result.end);
+          field.dispatchEvent(new Event('input',{bubbles:true}));
+          field.focus({preventScroll:true});
+          field.setSelectionRange(result.start,result.end);
+        }
+      });
+    }
+  }
+  wireMarkdownBar(previewMarkdownBar,'preview');
+  wireMarkdownBar(modalMarkdownBar,'modal');
+  wireMarkdownBar(fullTextMarkdownBar,'full');
+
   function wireFormattingBar(barInfo,origin) {
     let savedSelection=null;
     const remember=()=>{ savedSelection=formattingSnapshot(origin); };

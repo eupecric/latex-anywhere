@@ -2,7 +2,7 @@
 
 Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-visualização LaTeX a campos de texto em sites compatíveis, incluindo `textarea` e `contenteditable`.
 
-**Versão atual: 1.10.3.** Primeira versão no repositório: 1.10.0.
+**Versão atual: 1.10.4.** Primeira versão no repositório: 1.10.0.
 
 ## Instalação em modo desenvolvedor
 
@@ -17,6 +17,7 @@ Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-vis
 ## Recursos
 
 - Renderização de Markdown: títulos, ênfase, listas, tabelas, citações, links e blocos de código, mantendo o Markdown original ao aplicar.
+- Barra independente de **atalhos Markdown**, posicionada entre os atalhos LaTeX e a formatação matemática; disponível na prévia, no editor principal e no editor separado. Oferece títulos, negrito, itálico, riscado, link, listas, citação, código, tabela e linha horizontal.
 - Suporte a `\boxed{...}` na prévia matemática e como atalho na paleta de estruturas.
 - Prévia renderizada de expressões entre `\(...\)`, `\[...\]`, `$$...$$` e ambientes AMS compatíveis.
 - Prévia e editores móveis/redimensionáveis com opção de sincronizar ou aplicar manualmente.
@@ -59,6 +60,10 @@ Documentação adicional: [visibilidade e minimização por escopo](docs/VISIBIL
 - `docs/` — documentação da versão importada e capturas.
 - `tests/` — página local simples para experimentar a extensão.
 
+## Atalhos Markdown
+
+A barra **Markdown:** aparece entre os atalhos LaTeX e a barra matemática na pré-visualização. Também está disponível nos editores de texto. Trabalha com o texto-fonte original, respeita a seleção e preserva o cursor. Veja [a lista de ações e exemplos](docs/MARKDOWN-SHORTCUTS.md).
+
 ## Tecnologia e limitações
 
 O código inclui uma versão local do **KaTeX** para renderização matemática e uma cópia do **Marked 4.0.19** para leitura do Markdown. Ambos são distribuídos sob licença MIT, com os avisos correspondentes em `extension/vendor/LICENCA-KATEX.txt` e `extension/vendor/LICENCA-MARKED.txt`.
@@ -75,7 +80,7 @@ Após editar `extension/`, clique em **Recarregar** na página de extensões e a
 
 ## Releases and version history
 
-The first version published to this repository is **v1.10.0**; the current development version is **v1.10.3**. See
+The first version published to this repository is **v1.10.0**; the current development version is **v1.10.4**. See
 [CHANGELOG.md](CHANGELOG.md) for the version history. Each subsequent change
 should update `extension/manifest.json`, the changelog, and the corresponding
 Git commit. The extension is intended for a future free Chrome Web Store

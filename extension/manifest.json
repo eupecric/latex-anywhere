@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "LaTeX Anywhere — Editor & Preview",
   "short_name": "LaTeX Anywhere",
-  "description": "Editor de LaTeX e Markdown com atalhos, minimização e ocultação por aba, domínio ou global.",
-  "version": "1.10.3",
+  "description": "Editor de LaTeX e Markdown com barras de atalhos, símbolos, minimização e ocultação por aba, domínio ou global.",
+  "version": "1.10.4",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
@@ -22,6 +22,7 @@
         "vendor/markdown-renderer.js",
         "vendor/latex-formatting.js",
         "vendor/latex-catalog.js",
+        "vendor/markdown-shortcuts.js",
         "content.js"
       ],
       "run_at": "document_idle",

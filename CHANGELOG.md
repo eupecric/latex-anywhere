@@ -3,6 +3,30 @@
 All notable changes to LaTeX Anywhere are recorded here. Versions follow the
 extension manifest version; dates refer to repository publication milestones.
 
+## [1.10.4] - 2026-11-23
+
+### Markdown shortcuts toolbar
+
+- Add a distinct **Markdown:** toolbar between user-defined LaTeX shortcuts
+  and mathematical formatting in the live preview.
+- Make the same Markdown actions available in the main modal editor and the
+  separate full-text editor.
+- Include H1/H2/H3, bold, italic, strikethrough, inline code, links, bullets,
+  numbered lists, task lists, blockquotes, fenced code, tables and rules.
+- Operate on the source-text selection and preserve Markdown syntax for copy
+  and application to the original text field; reuse existing live-preview.
+- Preserve cursor / selections when applying commands and block accidental
+  inline Markdown formatting inside LaTeX math modes.
+- Ensure the minimum preview writing area remains unchanged after introducing
+  the new toolbar; overflow stays confined to the Markdown row on narrow screens.
+- Bundle the source-transform helper as a local, dependency-free script.
+
+### Verification
+
+- 29 Node assertions for source transformations and caret behavior passed.
+- Updated content script checked for JavaScript syntax.
+- Native Chrome integration and ChatGPT ProseMirror behavior remain unverified.
+
 ## [1.10.3] - 2026-11-23
 
 ### Tab, domain and global hide/minimize scopes
