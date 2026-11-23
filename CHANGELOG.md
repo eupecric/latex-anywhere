@@ -3,6 +3,31 @@
 All notable changes to LaTeX Anywhere are recorded here. Versions follow the
 extension manifest version; dates refer to repository publication milestones.
 
+## [1.10.3] - 2026-11-23
+
+### Tab, domain and global hide/minimize scopes
+
+- Add **Ocultar nesta aba**; keep the existing domain and all-site hide options.
+- Convert **Minimizar** into a choice between **Nesta aba**, **Neste domínio**
+  and **Em todos os sites**, while preserving the 2×2 corner selector.
+- Store per-tab hide/minimize flags under the tab ID in `chrome.storage.session`,
+  and clean them up when the tab closes. Keep domain/global preferences in
+  `chrome.storage.local`, persistent across page refresh and browser restart.
+- Add a six-toggle popup for restoring any hide/minimize preference, even while
+  the extension's page interface is invisible.
+- Make hiding take priority over minimization; explicit **Maximizar** restores
+  the full bar by clearing minimization scopes without changing hide settings.
+- Preserve legacy per-origin minimized state as a migration fallback until
+  scoped preferences are selected.
+- Extend the shortcut and toolbar badge to distinguish tab-level hiding.
+
+### Verification
+
+- Syntax-checked the modified content, background and popup scripts.
+- Node-based mock Chrome test passed for session storage persistence, isolation
+  across tabs, popup access, badge status, and cleanup on tab close.
+- Native Chrome integration and ChatGPT ProseMirror behavior remain unverified.
+
 ## [1.10.2] - 2026-11-18
 
 ### Markdown preview and boxed math

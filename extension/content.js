@@ -1,5 +1,5 @@
 /*
- * LaTeX Anywhere v1.10.1 — persistent global and domain visibility controls.
+ * LaTeX Anywhere v1.10.3 — tab/domain/global hide and minimize scopes.
  * Runs locally in Chrome's ISOLATED world; sends no data to any service.
  * By default, original field is only modified after Apply; live apply is opt-in.
  */
@@ -22,6 +22,11 @@
   let updateTimer = null;
   let storedLayout = { toolbar: null, preview: null, previewSize: null, formula: null, formulaSize: null, fullText: null, fullTextSize: null, shortcutsWindow: null, shortcutsSize: null, shortcuts: null, keyboardBindings: [], previewZoom: 100, modalZoom: 100, previewMode: 'auto', autoApply: false, applyMode: 'replace', toolbarMinimized: false, minimizedCorner: 'bottom-right' };
   let toolbarMinimized = false;
+  let legacyMinimized = false;
+  let tabHidden = false;
+  let tabMinimized = false;
+  let domainMinimized = false;
+  let globalMinimized = false;
   let minimizedCorner = 'bottom-right';
   let showFullToolbarWithoutTarget = false;
   const toolbarCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
@@ -121,6 +126,8 @@
   const normalizedHost = location.protocol === 'file:' ? 'local-files'
     : (pageHostname.toLowerCase().replace(/^www\./, '') || location.origin);
   const domainVisibilityKey = `latex-anywhere-visibility-v2:domain-hidden:${normalizedHost}`;
+  const globalMinimizedKey = 'latex-anywhere-minimize-v1:global';
+  const domainMinimizedKey = `latex-anywhere-minimize-v1:domain:${normalizedHost}`;
   const legacyEnabledKey = `latex-anywhere-enabled-v1:${location.origin}`;
   let globalHidden = false;
   let domainHidden = false;
@@ -142,8 +149,10 @@
       if (!val || typeof val !== 'object') return;
       function validXY(obj) { return obj && Number.isFinite(obj.x) && Number.isFinite(obj.y) ? { x:obj.x, y:obj.y } : null; }
       storedLayout.toolbar = validXY(val.toolbar);
-      toolbarMinimized = val.toolbarMinimized === true;
-      storedLayout.toolbarMinimized = toolbarMinimized;
+      // Old versions stored minimization per origin in the layout. Read it only
+      // as a migration fallback; a new scoped setting always takes priority.
+      legacyMinimized = val.toolbarMinimized === true;
+      storedLayout.toolbarMinimized = false;
       minimizedCorner = toolbarCorners.includes(val.minimizedCorner) ? val.minimizedCorner : 'bottom-right';
       storedLayout.minimizedCorner = minimizedCorner;
       renderToolbarMode();
@@ -905,11 +914,13 @@
   const minimizeTrigger = element('button', 'la-toolbarbutton', undefined, toolbar);
   setToolbarButton(minimizeTrigger, 'Minimizar', 'minimize');
   minimizeTrigger.type = 'button';
-  minimizeTrigger.title = 'Minimizar a barra para escolher um canto da página';
+  minimizeTrigger.title = 'Escolher o alcance da minimização';
+  minimizeTrigger.setAttribute('aria-haspopup','menu');
+  minimizeTrigger.setAttribute('aria-expanded','false');
   const hideAllTrigger = element('button', 'la-toolbarbutton', undefined, toolbar);
   setToolbarButton(hideAllTrigger, 'Ocultar', 'power');
   hideAllTrigger.type = 'button';
-  hideAllTrigger.title = 'Escolher entre ocultar neste domínio ou em todos os sites';
+  hideAllTrigger.title = 'Ocultar nesta aba, neste domínio ou em todos os sites';
   hideAllTrigger.setAttribute('aria-label', 'Escolher o alcance da ocultação');
   hideAllTrigger.setAttribute('aria-haspopup', 'menu');
   hideAllTrigger.setAttribute('aria-expanded', 'false');
@@ -918,27 +929,46 @@
   const visibilityMenu = element('div','la-visibility-menu la-hidden',undefined,shadow);
   visibilityMenu.setAttribute('role','menu');
   visibilityMenu.setAttribute('aria-label','Ocultar LaTeX Anywhere');
+  const hideTabOption = element('button','la-visibility-option','Ocultar nesta aba',visibilityMenu);
   const hideDomainOption = element('button','la-visibility-option','Ocultar neste domínio',visibilityMenu);
   const hideGlobalOption = element('button','la-visibility-option','Ocultar em todos os sites',visibilityMenu);
-  hideDomainOption.type = hideGlobalOption.type = 'button';
-  hideDomainOption.setAttribute('role','menuitem');
-  hideGlobalOption.setAttribute('role','menuitem');
+  const minimizeMenu = element('div','la-visibility-menu la-hidden',undefined,shadow);
+  minimizeMenu.setAttribute('role','menu');
+  minimizeMenu.setAttribute('aria-label','Minimizar LaTeX Anywhere');
+  const minimizeTabOption = element('button','la-visibility-option','Minimizar nesta aba',minimizeMenu);
+  const minimizeDomainOption = element('button','la-visibility-option','Minimizar neste domínio',minimizeMenu);
+  const minimizeGlobalOption = element('button','la-visibility-option','Minimizar em todos os sites',minimizeMenu);
+  for (const button of [hideTabOption,hideDomainOption,hideGlobalOption,
+      minimizeTabOption,minimizeDomainOption,minimizeGlobalOption]) {
+    button.type='button'; button.setAttribute('role','menuitem');
+  }
   element('div','la-visibility-hint','Para reativar, use o ícone do Chrome ou Alt+Shift+L.',visibilityMenu);
-  function closeVisibilityMenu() {
+  element('div','la-visibility-hint','Para restaurar, use Maximizar ou o ícone do Chrome.',minimizeMenu);
+  function closeScopeMenus() {
     visibilityMenu.classList.add('la-hidden');
+    minimizeMenu.classList.add('la-hidden');
     hideAllTrigger.setAttribute('aria-expanded','false');
+    minimizeTrigger.setAttribute('aria-expanded','false');
+  }
+  function closeVisibilityMenu() { closeScopeMenus(); }
+  function openScopeMenu(menu,trigger,firstOption) {
+    const opening=menu.classList.contains('la-hidden');
+    closeScopeMenus();
+    if (!opening) return;
+    menu.classList.remove('la-hidden');
+    trigger.setAttribute('aria-expanded','true');
+    const r=trigger.getBoundingClientRect();
+    const m=menu.getBoundingClientRect();
+    menu.style.left=`${Math.max(8,Math.min(r.right-m.width,innerWidth-m.width-8))}px`;
+    const top=r.bottom+m.height+8<innerHeight?r.bottom+5:r.top-m.height-5;
+    menu.style.top=`${Math.max(8,Math.min(top,innerHeight-m.height-8))}px`;
+    firstOption.focus({preventScroll:true});
   }
   function openVisibilityMenu() {
-    const opening = visibilityMenu.classList.contains('la-hidden');
-    if (!opening) { closeVisibilityMenu(); return; }
-    visibilityMenu.classList.remove('la-hidden');
-    hideAllTrigger.setAttribute('aria-expanded','true');
-    const r=hideAllTrigger.getBoundingClientRect();
-    const m=visibilityMenu.getBoundingClientRect();
-    visibilityMenu.style.left=`${Math.max(8,Math.min(r.right-m.width,innerWidth-m.width-8))}px`;
-    const top=r.bottom+m.height+8<innerHeight ? r.bottom+5 : r.top-m.height-5;
-    visibilityMenu.style.top=`${Math.max(8,Math.min(top,innerHeight-m.height-8))}px`;
-    hideDomainOption.focus({preventScroll:true});
+    openScopeMenu(visibilityMenu,hideAllTrigger,hideTabOption);
+  }
+  function openMinimizeMenu() {
+    openScopeMenu(minimizeMenu,minimizeTrigger,minimizeTabOption);
   }
 
   // In compact mode the main bar transforms into a maximize button and a 2×2
@@ -3168,18 +3198,19 @@
       toolbar.style.top = '';
     }
   }
-  function setToolbarMinimized(minimized) {
+  function setToolbarMinimized(minimized, focusControl=false) {
     toolbarMinimized = Boolean(minimized);
     // An explicit Maximize must reveal the full bar even before any field has focus.
     showFullToolbarWithoutTarget = !toolbarMinimized && (!currentTarget || !isEligible(currentTarget));
-    storedLayout.toolbarMinimized = toolbarMinimized;
+    // Do not let a per-tab minimization leak into the per-origin layout.
+    storedLayout.toolbarMinimized = false;
     renderToolbarMode();
     saveLayout();
     if (extensionEnabled && !modalOpen) {
       toolbar.classList.remove('la-hidden');
       placeUI();
       // Explicitly focus the destination control to preserve keyboard access.
-      (toolbarMinimized ? maximizeTrigger : minimizeTrigger).focus({preventScroll:true});
+      if (focusControl) (toolbarMinimized ? maximizeTrigger : minimizeTrigger).focus({preventScroll:true});
     }
   }
   function placeUI() {
@@ -3289,12 +3320,13 @@
     updateTimer = setTimeout(refreshFloating, 95);
   }
 
-  // The UI is always hidden while the persisted settings are loaded, so
-  // a hidden extension cannot briefly flash after a page refresh.
+  // Hide wins over minimize. Tab scope is stored by the service worker in
+  // chrome.storage.session, keyed by tab ID; domain/global scopes use local.
   function reportVisibility() {
     if (window !== window.top) return;
     try { chrome.runtime.sendMessage({type:'latex-anywhere:state',
-      enabled:extensionEnabled,globalHidden,domainHidden,domain:normalizedHost
+      enabled:extensionEnabled,globalHidden,domainHidden,tabHidden,
+      globalMinimized,domainMinimized,tabMinimized,domain:normalizedHost
     }).catch(()=>{}); } catch { /* Service worker restarting. */ }
   }
   function setExtensionEnabled(enabled) {
@@ -3304,7 +3336,7 @@
     visibilityRevision++;
     host.style.display = extensionEnabled ? '' : 'none';
     if (!extensionEnabled) {
-      closeVisibilityMenu();
+      closeScopeMenus();
       clearTimeout(updateTimer);
       clearTimeout(autoApplyTimer);
     } else if (changed && !modalOpen) {
@@ -3319,77 +3351,136 @@
     }
     reportVisibility();
   }
+  function updateScopes() {
+    const shouldMinimize=tabMinimized || domainMinimized || globalMinimized;
+    if (toolbarMinimized !== shouldMinimize) setToolbarMinimized(shouldMinimize);
+    setExtensionEnabled(!tabHidden && !domainHidden && !globalHidden);
+  }
   function visibilityState() {
-    return {enabled:extensionEnabled,globalHidden,domainHidden,domain:normalizedHost};
+    return {enabled:extensionEnabled,globalHidden,domainHidden,tabHidden,
+      globalMinimized,domainMinimized,tabMinimized,domain:normalizedHost};
+  }
+  function acceptTabScope(scope) {
+    if (!scope || typeof scope!=='object') return;
+    tabHidden=scope.hidden===true;
+    tabMinimized=scope.minimized===true;
+    updateScopes();
   }
   async function loadEnabled() {
     const token=++visibilityLoadId;
     try {
-      const values=await chrome.storage.local.get([globalVisibilityKey,domainVisibilityKey,legacyEnabledKey]);
+      const [values,tabScope]=await Promise.all([
+        chrome.storage.local.get([globalVisibilityKey,domainVisibilityKey,legacyEnabledKey,
+          globalMinimizedKey,domainMinimizedKey]),
+        chrome.runtime.sendMessage({type:'latex-anywhere:get-tab-scope'}).catch(()=>null)
+      ]);
       if (token!==visibilityLoadId) return;
       globalHidden=values[globalVisibilityKey]===true;
-      // Once a new preference is explicitly set, the legacy origin value no
-      // longer has any effect (even if it was 'disabled' in older releases).
       domainHidden=typeof values[domainVisibilityKey]==='boolean'
         ? values[domainVisibilityKey] : values[legacyEnabledKey]===false;
-      setExtensionEnabled(!globalHidden && !domainHidden);
+      globalMinimized=values[globalMinimizedKey]===true;
+      domainMinimized=typeof values[domainMinimizedKey]==='boolean'
+        ? values[domainMinimizedKey] : legacyMinimized;
+      if (tabScope) {
+        tabHidden=tabScope.hidden===true;
+        tabMinimized=tabScope.minimized===true;
+      }
+      updateScopes();
     } catch {
-      if (token===visibilityLoadId) setExtensionEnabled(!globalHidden && !domainHidden);
+      if (token===visibilityLoadId) updateScopes();
     }
   }
-  function setVisibility(scope,hidden) {
-    ++visibilityLoadId; // Supersede any read started before the user's action.
+  async function setVisibility(scope,hidden) {
+    ++visibilityLoadId;
+    if (scope==='tab') {
+      tabHidden=Boolean(hidden);
+      updateScopes();
+      try {
+        const state=await chrome.runtime.sendMessage({type:'latex-anywhere:set-tab-scope',patch:{hidden:Boolean(hidden)}});
+        if (state) acceptTabScope(state);
+      } catch { void loadEnabled(); }
+      return;
+    }
     const key=scope==='global'?globalVisibilityKey:domainVisibilityKey;
-    if (scope==='global') globalHidden=hidden;
-    else domainHidden=hidden;
-    setExtensionEnabled(!globalHidden && !domainHidden);
-    try { chrome.storage.local.set({[key]:hidden}).catch(()=>loadEnabled()); }
-    catch { /* Remains in effect for this tab until a reload if storage fails. */ }
+    if (scope==='global') globalHidden=Boolean(hidden);
+    else domainHidden=Boolean(hidden);
+    updateScopes();
+    try { await chrome.storage.local.set({[key]:Boolean(hidden)}); }
+    catch { void loadEnabled(); }
+  }
+  async function setMinimizeScope(scope,minimized) {
+    ++visibilityLoadId;
+    const enabled=Boolean(minimized);
+    if (scope==='tab') tabMinimized=enabled;
+    else if (scope==='domain') domainMinimized=enabled;
+    else globalMinimized=enabled;
+    legacyMinimized=false;
+    storedLayout.toolbarMinimized=false;
+    updateScopes();
+    saveLayout();
+    try {
+      if (scope==='tab') {
+        const state=await chrome.runtime.sendMessage({type:'latex-anywhere:set-tab-scope',patch:{minimized:enabled}});
+        if (state) acceptTabScope(state);
+      } else {
+        const key=scope==='global'?globalMinimizedKey:domainMinimizedKey;
+        await chrome.storage.local.set({[key]:enabled});
+      }
+    } catch { void loadEnabled(); }
+  }
+  async function restoreMinimization() {
+    // Explicitly maximizing clears all active minimizing scopes. Hide choices
+    // are independent and are never changed by this action.
+    ++visibilityLoadId;
+    tabMinimized=domainMinimized=globalMinimized=false;
+    legacyMinimized=false;
+    storedLayout.toolbarMinimized=false;
+    updateScopes();
+    saveLayout();
+    try {
+      await Promise.all([
+        chrome.storage.local.set({[domainMinimizedKey]:false,[globalMinimizedKey]:false}),
+        chrome.runtime.sendMessage({type:'latex-anywhere:set-tab-scope',patch:{minimized:false}})
+      ]);
+    } catch { void loadEnabled(); }
   }
   let lastShortcutToggleAt = 0;
   function toggleWithShortcut() {
-    // Alt+Shift+L restores global visibility when globally hidden; otherwise
-    // it toggles the current domain. Debounce the Chrome command/key listener.
     const now=Date.now();
     if (now-lastShortcutToggleAt<650) return visibilityState();
     lastShortcutToggleAt=now;
-    if (globalHidden) setVisibility('global',false);
-    else setVisibility('domain',!domainHidden);
+    if (globalHidden) void setVisibility('global',false);
+    else if (domainHidden) void setVisibility('domain',false);
+    else if (tabHidden) void setVisibility('tab',false);
+    else void setVisibility('domain',true);
     return visibilityState();
   }
-
   document.addEventListener('keydown', event => {
-    // This listener stays active even with the extension visually hidden.
-    // Use e.code for keyboard layout independence; e.key is a fallback.
     if ((event.code === 'KeyL' || String(event.key).toLowerCase() === 'l') &&
         event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.repeat) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggleWithShortcut();
+      event.preventDefault();event.stopImmediatePropagation();toggleWithShortcut();
     }
   }, true);
-
   try {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area==='local' && (globalVisibilityKey in changes || domainVisibilityKey in changes)) {
-        void loadEnabled();
-      }
+    chrome.storage.onChanged.addListener((changes,area)=>{
+      if (area==='local' && [globalVisibilityKey,domainVisibilityKey,globalMinimizedKey,domainMinimizedKey]
+          .some(key=>key in changes)) void loadEnabled();
     });
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message?.type==='latex-anywhere:get-state') {
+    chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
+      if (message?.type==='latex-anywhere:get-state') {sendResponse(visibilityState());return false;}
+      if (message?.type==='latex-anywhere:toggle') {sendResponse(toggleWithShortcut());return false;}
+      if (message?.type==='latex-anywhere:tab-scope-changed') {
+        ++visibilityLoadId;
+        acceptTabScope(message.scope);
         sendResponse(visibilityState());
-        return false;
-      }
-      if (message?.type==='latex-anywhere:toggle') {
-        sendResponse(toggleWithShortcut());
         return false;
       }
       return false;
     });
   } catch { /* Runtime can be unavailable during extension updates. */ }
 
-  minimizeTrigger.addEventListener('click', () => setToolbarMinimized(true));
-  maximizeTrigger.addEventListener('click', () => setToolbarMinimized(false));
+  minimizeTrigger.addEventListener('click',openMinimizeMenu);
+  maximizeTrigger.addEventListener('click',()=>{void restoreMinimization();});
   for (const [corner, button] of cornerButtons) {
     button.addEventListener('click', () => {
       if (!toolbarMinimized) return;
@@ -4020,18 +4111,23 @@
   }
 
   editorTrigger.addEventListener('click', openModal);
-  hideAllTrigger.addEventListener('click', openVisibilityMenu);
-  hideDomainOption.addEventListener('click',()=>setVisibility('domain',true));
-  hideGlobalOption.addEventListener('click',()=>setVisibility('global',true));
+  hideAllTrigger.addEventListener('click',openVisibilityMenu);
+  hideTabOption.addEventListener('click',()=>{closeScopeMenus();void setVisibility('tab',true);});
+  hideDomainOption.addEventListener('click',()=>{closeScopeMenus();void setVisibility('domain',true);});
+  hideGlobalOption.addEventListener('click',()=>{closeScopeMenus();void setVisibility('global',true);});
+  minimizeTabOption.addEventListener('click',()=>{closeScopeMenus();void setMinimizeScope('tab',true);});
+  minimizeDomainOption.addEventListener('click',()=>{closeScopeMenus();void setMinimizeScope('domain',true);});
+  minimizeGlobalOption.addEventListener('click',()=>{closeScopeMenus();void setMinimizeScope('global',true);});
   document.addEventListener('pointerdown',e=>{
-    if (!visibilityMenu.classList.contains('la-hidden') &&
-        !e.composedPath().includes(visibilityMenu) && !e.composedPath().includes(hideAllTrigger)) {
-      closeVisibilityMenu();
-    }
+    const path=e.composedPath();
+    if (![visibilityMenu,minimizeMenu,hideAllTrigger,minimizeTrigger].some(node=>path.includes(node)))
+      closeScopeMenus();
   },true);
   shadow.addEventListener('keydown',e=>{
-    if (e.key==='Escape' && !visibilityMenu.classList.contains('la-hidden')) {
-      e.preventDefault(); e.stopPropagation(); closeVisibilityMenu(); hideAllTrigger.focus();
+    if (e.key==='Escape' && (!visibilityMenu.classList.contains('la-hidden') ||
+        !minimizeMenu.classList.contains('la-hidden'))) {
+      const active=minimizeMenu.classList.contains('la-hidden')?hideAllTrigger:minimizeTrigger;
+      e.preventDefault();e.stopPropagation();closeScopeMenus();active.focus();
     }
   });
   previewTrigger.addEventListener('click', togglePreview);
@@ -4209,8 +4305,7 @@
 
   // Wait for body if extension content script ran before DOM body materialized.
   (document.body || document.documentElement).appendChild(host);
-  loadLayout();
-  loadEnabled();
+  void loadLayout().then(loadEnabled);
 
   // Observe edits made by a framework as well as ordinary user input. A
   // contenteditable host can change its DOM without emitting an input event.

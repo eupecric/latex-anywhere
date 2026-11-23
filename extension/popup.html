@@ -3,16 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LaTeX Anywhere — Visibilidade</title>
+<title>LaTeX Anywhere — Visibilidade e minimização</title>
 <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-<header><div class="brand">∑ LaTeX Anywhere</div><small>Visibilidade persistente</small></header>
+<header><div class="brand">∑ LaTeX Anywhere</div><small>Visibilidade e minimização</small></header>
 <main>
-  <label class="setting"><span><b>Ocultar em todos os sites</b><small>A extensão não aparece em nenhuma aba ou domínio.</small></span><input type="checkbox" id="globalHidden"></label>
-  <label class="setting" id="domainSetting"><span><b>Ocultar neste domínio</b><small id="domainName">Identificando domínio…</small></span><input type="checkbox" id="domainHidden"></label>
+  <h2>Ocultar</h2>
+  <label class="setting"><span><b>Nesta aba</b><small>Apenas esta aba; mantém ao atualizar, até fechá-la.</small></span><input type="checkbox" id="tabHidden"></label>
+  <label class="setting"><span><b>Neste domínio</b><small id="domainName">Identificando domínio…</small></span><input type="checkbox" id="domainHidden"></label>
+  <label class="setting"><span><b>Em todos os sites</b><small>Oculta a interface em todas as abas.</small></span><input type="checkbox" id="globalHidden"></label>
+  <h2>Minimizar</h2>
+  <label class="setting"><span><b>Nesta aba</b><small>A barra fica compacta somente nesta aba.</small></span><input type="checkbox" id="tabMinimized"></label>
+  <label class="setting"><span><b>Neste domínio</b><small>Barra compacta em todas as abas deste domínio.</small></span><input type="checkbox" id="domainMinimized"></label>
+  <label class="setting"><span><b>Em todos os sites</b><small>Barra compacta em qualquer site.</small></span><input type="checkbox" id="globalMinimized"></label>
   <p id="status" aria-live="polite"></p>
-  <p class="hint">O bloqueio global tem prioridade. As opções são salvas e permanecem após recarregar ou reiniciar o navegador. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> alterna este domínio ou reativa o bloqueio global.</p>
+  <p class="hint">Ocultar tem prioridade sobre Minimizar. As configurações de domínio e globais persistem após reiniciar o Chrome. As opções desta aba persistem ao atualizar, mas desaparecem quando a aba é fechada. Maximizar limpa os níveis de minimização ativos, sem alterar a ocultação.</p>
+  <p class="hint"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> reativa o bloqueio global, do domínio ou da aba; quando não há bloqueio, oculta o domínio.</p>
 </main>
 <script src="popup.js"></script>
 </body>

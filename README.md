@@ -2,7 +2,7 @@
 
 Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-visualização LaTeX a campos de texto em sites compatíveis, incluindo `textarea` e `contenteditable`.
 
-**Versão atual: 1.10.2.** Primeira versão no repositório: 1.10.0.
+**Versão atual: 1.10.3.** Primeira versão no repositório: 1.10.0.
 
 ## Instalação em modo desenvolvedor
 
@@ -25,26 +25,33 @@ Extensão para Google Chrome (Manifest V3) que adiciona um editor e uma pré-vis
 - Atalhos de inserção e teclas configuráveis por site; `Ctrl+B`, `Ctrl+I`, `Ctrl+U` fixos nos editores da extensão.
 - Menu de contexto dos símbolos: **Copiar LaTeX** e **Definir tecla de atalho**.
 - Zoom independente nas visualizações e modo de minimizar a barra.
-- Ocultação persistente por domínio ou em todos os sites, com recuperação pelo ícone do Chrome.
+- Ocultação e minimização com escopos independentes: nesta aba, neste domínio ou em todos os sites; recuperação pelo ícone do Chrome.
 
 ## Ocultar e reativar
 
-Clique em **Ocultar** na barra principal para escolher entre:
+Clique em **Ocultar** ou **Minimizar** na barra principal. Ambos oferecem **Nesta aba**, **Neste domínio** e **Em todos os sites**.
 
+A escolha **Nesta aba** sobrevive ao refresh, mas é eliminada quando a aba é fechada. Escolhas por domínio e globais sobrevivem a refresh e reinicialização do Chrome. **Ocultar tem prioridade sobre Minimizar.** O botão **Maximizar** elimina os escopos de minimização ativos, sem reativar nenhuma ocultação.
+
+Na barra **Ocultar** você pode escolher:
+
+- **Ocultar nesta aba:** a extensão deixa de aparecer apenas na aba atual, inclusive depois de recarregar, até fechar a aba.
 - **Ocultar neste domínio:** a extensão deixa de aparecer no domínio atual,
   incluindo após atualizar a página ou fechar e reabrir o Chrome.
 - **Ocultar em todos os sites:** oculta a extensão em qualquer aba/site;
   essa escolha tem prioridade sobre as configurações de cada domínio.
 
 Para reativar, **clique no ícone da extensão na barra do Chrome**. O painel
-permite desligar separadamente cada bloqueio. Também é possível usar
+permite controlar separadamente os três níveis de ocultação e os três níveis de minimização. Também é possível usar
 **`Alt+Shift+L`**: com ocultação global ativa, ele a desativa; caso contrário,
-alterna a ocultação do domínio atual. O atalho pode ser ajustado em
+reativa a ocultação do domínio ou da aba conforme necessário; sem bloqueio, oculta o domínio atual. O atalho pode ser ajustado em
 `chrome://extensions/shortcuts`.
 
-As escolhas são armazenadas em `chrome.storage.local`, independentemente do
+As escolhas de domínio e globais são armazenadas em `chrome.storage.local`; as escolhas da aba usam `chrome.storage.session`, independentemente do
 texto das mensagens. O menu Ocultar não apaga os rascunhos abertos numa aba,
 mas eles não são guardados para restaurar após fechar essa aba.
+
+Documentação adicional: [visibilidade e minimização por escopo](docs/VISIBILIDADE-E-MINIMIZACAO.md).
 
 ## Estrutura
 
@@ -68,7 +75,7 @@ Após editar `extension/`, clique em **Recarregar** na página de extensões e a
 
 ## Releases and version history
 
-The first version published to this repository is **v1.10.0**; the current development version is **v1.10.2**. See
+The first version published to this repository is **v1.10.0**; the current development version is **v1.10.3**. See
 [CHANGELOG.md](CHANGELOG.md) for the version history. Each subsequent change
 should update `extension/manifest.json`, the changelog, and the corresponding
 Git commit. The extension is intended for a future free Chrome Web Store

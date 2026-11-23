@@ -1,63 +1,84 @@
-/* Persistent visibility controls, available even when all page UI is hidden. */
+/* LaTeX Anywhere v1.10.3 — scoped hide/minimize preferences. */
 'use strict';
-const GLOBAL_KEY='latex-anywhere-visibility-v2:global-hidden';
-const DOMAIN_PREFIX='latex-anywhere-visibility-v2:domain-hidden:';
-const globalToggle=document.getElementById('globalHidden');
-const domainToggle=document.getElementById('domainHidden');
-const domainName=document.getElementById('domainName');
+const GLOBAL_HIDDEN='latex-anywhere-visibility-v2:global-hidden';
+const DOMAIN_HIDDEN='latex-anywhere-visibility-v2:domain-hidden:';
+const GLOBAL_MINIMIZED='latex-anywhere-minimize-v1:global';
+const DOMAIN_MINIMIZED='latex-anywhere-minimize-v1:domain:';
+const fields={
+  tabHidden:document.getElementById('tabHidden'),
+  domainHidden:document.getElementById('domainHidden'),
+  globalHidden:document.getElementById('globalHidden'),
+  tabMinimized:document.getElementById('tabMinimized'),
+  domainMinimized:document.getElementById('domainMinimized'),
+  globalMinimized:document.getElementById('globalMinimized')
+};
 const status=document.getElementById('status');
-let domain=null;
-let domainKey=null;
-let legacyOrigin=null;
-function showStatus(globalHidden,domainHidden) {
-  status.textContent=globalHidden?'Oculta em todos os sites':
-    domainHidden?'Oculta neste domínio':'Extensão ativa';
+const domainName=document.getElementById('domainName');
+let activeTabId=null,domain=null,origin=null,ready=false;
+const key=field=>field==='globalHidden'?GLOBAL_HIDDEN:field==='domainHidden'?DOMAIN_HIDDEN+domain:
+  field==='globalMinimized'?GLOBAL_MINIMIZED:DOMAIN_MINIMIZED+domain;
+async function tabScope(type,patch){
+  if(activeTabId===null) return null;
+  return chrome.runtime.sendMessage({type,tabId:activeTabId,patch});
 }
-async function refresh() {
-  const keys=[GLOBAL_KEY];
-  if (domainKey) keys.push(domainKey);
-  if (legacyOrigin) keys.push(`latex-anywhere-enabled-v1:${legacyOrigin}`);
-  const values=await chrome.storage.local.get(keys);
-  const globalHidden=values[GLOBAL_KEY]===true;
-  const domainHidden=domainKey
-    ? (typeof values[domainKey]==='boolean' ? values[domainKey]
-      : values[`latex-anywhere-enabled-v1:${legacyOrigin}`]===false)
-    : false;
-  globalToggle.checked=globalHidden;
-  domainToggle.checked=domainHidden;
-  domainToggle.disabled=!domainKey;
-  showStatus(globalHidden,domainHidden);
+async function refresh(){
+  const readKeys=[GLOBAL_HIDDEN,GLOBAL_MINIMIZED];
+  if(domain){readKeys.push(DOMAIN_HIDDEN+domain,DOMAIN_MINIMIZED+domain);}
+  if(origin) readKeys.push('latex-anywhere-enabled-v1:'+origin);
+  const [values,scope]=await Promise.all([
+    chrome.storage.local.get(readKeys),tabScope('latex-anywhere:get-tab-scope').catch(()=>null)
+  ]);
+  const state={
+    globalHidden:values[GLOBAL_HIDDEN]===true,
+    domainHidden:domain?(typeof values[DOMAIN_HIDDEN+domain]==='boolean'
+      ? values[DOMAIN_HIDDEN+domain] : values['latex-anywhere-enabled-v1:'+origin]===false):false,
+    tabHidden:scope?.hidden===true,
+    globalMinimized:values[GLOBAL_MINIMIZED]===true,
+    domainMinimized:domain && values[DOMAIN_MINIMIZED+domain]===true,
+    tabMinimized:scope?.minimized===true
+  };
+  for(const [field,input] of Object.entries(fields)){
+    input.checked=state[field]===true;
+    input.disabled=(field.startsWith('tab')&&!Number.isInteger(activeTabId))||
+      (field.startsWith('domain')&&!domain);
+  }
+  const hidden=state.globalHidden?'em todos os sites':state.domainHidden?'neste domínio':
+    state.tabHidden?'nesta aba':null;
+  const minimized=state.globalMinimized?'em todos os sites':state.domainMinimized?'neste domínio':
+    state.tabMinimized?'nesta aba':null;
+  status.textContent=hidden?'Oculta '+hidden:minimized?'Minimizada '+minimized:'Extensão ativa';
+  ready=true;
 }
-async function init() {
-  try {
+async function init(){
+  try{
     const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
-    if (tab?.id!=null) {
-      const reply=await chrome.tabs.sendMessage(tab.id,{type:'latex-anywhere:get-state'},{frameId:0});
-      if (reply?.domain) {
-        domain=reply.domain;
-        domainKey=DOMAIN_PREFIX+domain;
-        domainName.textContent=domain==='local-files'?'Arquivos locais (file://)':domain;
-      }
+    if(Number.isInteger(tab?.id)){
+      activeTabId=tab.id;
+      const state=await chrome.tabs.sendMessage(activeTabId,{type:'latex-anywhere:get-state'},{frameId:0});
+      if(state?.domain){domain=state.domain;domainName.textContent=domain==='local-files'?'Arquivos locais':domain;}
     }
-  } catch { /* No content script on browser-internal or restricted pages. */ }
-  if (!domainKey) domainName.textContent='Não disponível nesta página';
+  }catch{/* Restricted page still permits global and per-tab controls. */}
+  if(!domain)domainName.textContent='Indisponível nesta página';
   await refresh();
 }
-globalToggle.addEventListener('change',async()=>{
-  globalToggle.disabled=true;
-  try { await chrome.storage.local.set({[GLOBAL_KEY]:globalToggle.checked});await refresh(); }
-  catch { status.textContent='Falha ao salvar configuração.'; }
-  finally { globalToggle.disabled=false; }
-});
-domainToggle.addEventListener('change',async()=>{
-  if (!domainKey) return;
-  domainToggle.disabled=true;
-  try { await chrome.storage.local.set({[domainKey]:domainToggle.checked});await refresh(); }
-  catch { status.textContent='Falha ao salvar configuração.'; }
-  finally { domainToggle.disabled=false; }
-});
+for(const [field,input] of Object.entries(fields)){
+  input.addEventListener('change',async()=>{
+    if(!ready)return;
+    const checked=input.checked;
+    input.disabled=true;
+    try{
+      if(field.startsWith('tab')){
+        await tabScope('latex-anywhere:set-tab-scope',{
+          [field==='tabHidden'?'hidden':'minimized']:checked
+        });
+      }else if(!field.startsWith('domain')||domain){
+        await chrome.storage.local.set({[key(field)]:checked});
+      }
+      await refresh();
+    }catch{status.textContent='Falha ao salvar a preferência.';input.disabled=false;}
+  });
+}
 chrome.storage.onChanged.addListener((changes,area)=>{
-  if (area==='local' && (GLOBAL_KEY in changes || (domainKey && domainKey in changes)))
-    void refresh();
+  if(ready&&(area==='local'||area==='session'))void refresh();
 });
 void init();
